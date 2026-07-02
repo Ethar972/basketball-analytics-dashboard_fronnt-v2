@@ -1,0 +1,200 @@
+<div class="app-container" [class.light-mode]="isLightMode">
+  <div class="top-bar">
+    <button *ngIf="viewMode !== 'story'" class="back-btn" (click)="goBack()">⬅ Back</button>
+    
+    <div class="search-container" *ngIf="viewMode === 'story'">
+      <input 
+        type="text" 
+        class="search-input" 
+        placeholder="Search Matches..." 
+        [(ngModel)]="searchText" 
+        (input)="onSearch()"
+        (focus)="onSearch()"
+      />
+      <ul class="suggestions-list" *ngIf="filteredOptions.length > 0">
+        <li *ngFor="let opt of filteredOptions" (click)="selectOption(opt)">{{ opt }}</li>
+      </ul>
+    </div>
+
+    <button class="theme-toggle" (click)="toggleTheme()">
+      {{ isLightMode ? '☀️' : '🌙' }}
+    </button>
+  </div>
+
+  <hr class="nav-divider" />
+
+  <div *ngIf="viewMode === 'story'">
+    <div class="story-wrapper">
+      <div class="banner-container" *ngIf="currentMatch" (click)="openMatchFromBanner(currentMatch)">
+        
+        <div class="instagram-progress-container">
+          <div 
+            class="progress-bar-segment" 
+            *ngFor="let m of matches; let i = index"
+            [class.active]="i === currentIndex"
+            [class.completed]="i < currentIndex"
+          >
+            <div class="progress-bar-fill" [style.animationDuration]="'6s'" *ngIf="i === currentIndex"></div>
+          </div>
+        </div>
+
+        <img [src]="currentMatch.banner" alt="Match Banner" class="single-banner-photo" />
+        <div class="banner-under-content">
+          <div class="match-name-box">
+            <h2>{{ currentMatch.title || currentMatch.name }}</h2>
+          </div>
+          <button class="dashboard-direct-btn">View Match Stats</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="news-section-container">
+      <h2 class="news-section-title">Latest Updates & News</h2>
+      <div class="news-grid">
+        <p *ngIf="news.length === 0" style="color: #666; grid-column: 1/-1; text-align: center;">
+          No live news updates available right now.
+        </p>
+        <div class="news-card" *ngFor="let item of news">
+          <img *ngIf="item.image" [src]="item.image" alt="News Image" class="news-image" />
+          <div class="news-content-area">
+            <div class="news-date">📅 {{ item.date }}</div>
+            <h3 class="news-title">{{ item.title }}</h3>
+            <p class="news-body">{{ item.content }}</p>
+            <a *ngIf="item.video" [href]="item.video" target="_blank" class="news-video-link">
+              🎬 Watch Highlights
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="viewMode === 'dashboard'">
+    
+    <div class="tabs-container">
+      <div class="tab-card stats-card-btn" (click)="openStats()">
+        <span class="tab-card-emoji">📊</span>
+        <h3>Match Statistics</h3>
+      </div>
+      <div class="tab-card video-card-btn" (click)="viewMode = 'videos'">
+        <span class="tab-card-emoji">🎬</span>
+        <h3>Watch Highlights</h3>
+      </div>
+    </div>
+
+    <div class="viewing-status-header">
+      VIEWING ROSTER: {{ viewingTeam?.name }}
+    </div>
+
+    <div class="players-section-wrapper">
+      
+      <div class="instagram-progress-container players-progress">
+        <div class="progress-bar-segment" [class.active]="viewingTeamIndex === 0" [class.completed]="viewingTeamIndex > 0">
+          <div class="progress-bar-fill" [style.animationDuration]="'8s'" *ngIf="viewingTeamIndex === 0"></div>
+        </div>
+        <div class="progress-bar-segment" [class.active]="viewingTeamIndex === 1">
+          <div class="progress-bar-fill" [style.animationDuration]="'8s'" *ngIf="viewingTeamIndex === 1"></div>
+        </div>
+      </div>
+
+      <div class="players-story-accordion" *ngIf="viewingTeam">
+        <div 
+          class="story-panel" 
+          *ngFor="let p of viewingTeam.players" 
+          [style.backgroundImage]="'url(' + p.img + ')'"
+        >
+          <div class="panel-overlay-content">
+            <h4 class="panel-player-name">{{ p.name }}</h4>
+            <p class="panel-player-number">#{{ p.num }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="viewMode === 'videos'" class="video-page-container">
+    <button class="back-to-dash-btn" (click)="viewMode = 'dashboard'">⬅ Back to Dashboard</button>
+    <div class="video-player-wrapper">
+      <iframe [src]="getSafeVideoUrl()" frameborder="0" allowfullscreen></iframe>
+    </div>
+  </div>
+
+  <div class="stats-modal-overlay" *ngIf="showStats">
+    <div class="stats-modal-content">
+      <div class="modal-header">
+        <h2>Advanced Analytics - {{ selectedMatch }}</h2>
+        <button class="close-modal-btn" (click)="closeStats()">✕</button>
+      </div>
+      
+      <div class="modal-tabs">
+        <button [class.active]="selectedStatTab === 'csv'" (click)="setTab('csv')">CSV Data Tables</button>
+        <button [class.active]="selectedStatTab === 'heatmap'" (click)="setTab('heatmap')">Heatmaps</button>
+        <button [class.active]="selectedStatTab === 'network'" (click)="setTab('network')">Network Charts</button>
+        <button [class.active]="selectedStatTab === 'threeD'" (click)="setTab('threeD')">3D Visuals</button>
+      </div>
+
+      <div class="modal-body-scroll">
+        
+        <div *ngIf="selectedStatTab === 'csv'">
+          <h3>{{ team1Name }} Performance Data</h3>
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th *ngFor="let h of csvHeaders1">{{ h }}</th></tr></thead>
+              <tbody><tr *ngFor="let row of csvData1"><td *ngFor="let h of csvHeaders1">{{ row[h] }}</td></tr></tbody>
+            </table>
+          </div>
+
+          <h3>{{ team2Name }} Performance Data</h3>
+          <div class="table-responsive">
+            <table>
+              <thead><tr><th *ngFor="let h of csvHeaders2">{{ h }}</th></tr></thead>
+              <tbody><tr *ngFor="let row of csvData2"><td *ngFor="let h of csvHeaders2">{{ row[h] }}</td></tr></tbody>
+            </table>
+          </div>
+
+          <div class="abbreviations-box">
+            <h4>Table Abbreviations Key</h4>
+            <div class="abbreviations-grid">
+              <span><strong>Min:</strong> Minutes Played</span>
+              <span><strong>PTS:</strong> Points</span>
+              <span><strong>AST:</strong> Assists</span>
+              <span><strong>REB:</strong> Total Rebounds</span>
+              <span><strong>O-REB:</strong> Offensive Rebounds</span>
+              <span><strong>D-REB:</strong> Defensive Rebounds</span>
+              <span><strong>STL:</strong> Steals</span>
+              <span><strong>BLK:</strong> Blocks</span>
+              <span><strong>TO:</strong> Turnovers</span>
+              <span><strong>PF:</strong> Personal Fouls</span>
+              <span><strong>FGM:</strong> Field Goals Made</span>
+              <span><strong>FGA:</strong> Field Goals Attempted</span>
+              <span><strong>FG%:</strong> Field Goal Percentage</span>
+              <span><strong>3PM:</strong> 3-Pointers Made</span>
+              <span><strong>3PA:</strong> 3-Pointers Attempted</span>
+              <span><strong>3P%:</strong> 3-Point Percentage</span>
+              <span><strong>FTM:</strong> Free Throws Made</span>
+              <span><strong>FTA:</strong> Free Throws Attempted</span>
+              <span><strong>FT%:</strong> Free Throw Percentage</span>
+              <span><strong>+/-:</strong> Plus/Minus Rating</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="selectedStatTab === 'heatmap'" class="visuals-display-grid">
+          <div><h4>{{ team1Name }} Heatmap</h4><img [src]="visualsData[selectedMatch]?.heatmap[0]" class="analytics-img" /></div>
+          <div><h4>{{ team2Name }} Heatmap</h4><img [src]="visualsData[selectedMatch]?.heatmap[1]" class="analytics-img" /></div>
+        </div>
+
+        <div *ngIf="selectedStatTab === 'network'" class="visuals-display-grid">
+          <div><h4>{{ team1Name }} Passing Network</h4><img [src]="visualsData[selectedMatch]?.network[0]" class="analytics-img" /></div>
+          <div><h4>{{ team2Name }} Passing Network</h4><img [src]="visualsData[selectedMatch]?.network[1]" class="analytics-img" /></div>
+        </div>
+
+        <div *ngIf="selectedStatTab === 'threeD'" class="visuals-display-grid">
+          <div><h4>{{ team1Name }} 3D Trajectory</h4><img [src]="visualsData[selectedMatch]?.threeD[0]" class="analytics-img" /></div>
+          <div><h4>{{ team2Name }} 3D Trajectory</h4><img [src]="visualsData[selectedMatch]?.threeD[1]" class="analytics-img" /></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
